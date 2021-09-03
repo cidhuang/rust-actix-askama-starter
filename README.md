@@ -1,4 +1,4 @@
-# Rust + Actix Web + Askama Starter
+# Rust + Actix Web + Sailfish Starter
 
 Generate SSL files
 ```bash

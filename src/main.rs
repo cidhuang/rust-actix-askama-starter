@@ -6,12 +6,12 @@ use actix_web::http::StatusCode;
 use actix_web::middleware::errhandlers::{ErrorHandlerResponse, ErrorHandlers};
 use actix_web::{middleware, web, App, Error, HttpResponse, HttpServer, Result, http::ContentEncoding};
 
-use askama_actix::{Template};
+use sailfish::TemplateOnce;
 
 use actix_files as fs;
 
-#[derive(Template)]
-#[template(path = "index.html")]
+#[derive(TemplateOnce)]  // automatically implement `TemplateOnce` trait
+#[template(path = "index.html")]  // specify the path to template
 struct IndexTemplate<'a, 'b, 'c, 'd> {
     title: &'a str,
     keywords: &'b str,
@@ -19,7 +19,7 @@ struct IndexTemplate<'a, 'b, 'c, 'd> {
     test: &'d str,
 }
 
-#[derive(Template)]
+#[derive(TemplateOnce)]
 #[template(path = "about/index.html")]
 struct AboutTemplate<'a, 'b, 'c> {
     title: &'a str,
@@ -27,14 +27,14 @@ struct AboutTemplate<'a, 'b, 'c> {
     description: &'c str,
 }
 
-#[derive(Template)]
+#[derive(TemplateOnce)]
 #[template(path = "error.html")]
 struct ErrorTemplate<'a, 'b> {
     error: &'a str,
     status_code: &'b str,
 }
 
-use openssl::ssl::{SslAcceptor, SslFiletype, SslMethod};
+//use openssl::ssl::{SslAcceptor, SslFiletype, SslMethod};
 
 async fn index(
     _query: web::Query<HashMap<String, String>>,
@@ -45,7 +45,7 @@ async fn index(
         description: "Index Description",
         test: "Index Test",
     };
-    Ok(HttpResponse::Ok().content_type("text/html").body(s.render().unwrap()))
+    Ok(HttpResponse::Ok().content_type("text/html").body(s.render_once().unwrap()))
 }
 
 async fn favicon() -> actix_web::Result<actix_files::NamedFile> {
@@ -64,11 +64,12 @@ async fn about(
         keywords: "About Keywords",
         description: "About Description",
     };
-    Ok(HttpResponse::Ok().content_type("text/html").body(s.render().unwrap()))
+    Ok(HttpResponse::Ok().content_type("text/html").body(s.render_once().unwrap()))
 }
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
+/*
     // load ssl keys
     // to create a self-signed temporary cert for testing:
     // `openssl req -x509 -newkey rsa:4096 -nodes -keyout key.pem -out cert.pem -days 365 -subj '/CN=localhost'`
@@ -77,7 +78,7 @@ async fn main() -> std::io::Result<()> {
         .set_private_key_file("key.pem", SslFiletype::PEM)
         .unwrap();
     builder.set_certificate_chain_file("cert.pem").unwrap();
-
+*/
     std::env::set_var("RUST_LOG", "actix_web=info");
     env_logger::init();
 
@@ -91,18 +92,12 @@ async fn main() -> std::io::Result<()> {
             .service(web::resource("/styles.css").route(web::get().to(styles)))
             .service(web::resource("/").route(web::get().to(index)))
             .service(web::resource("/index").route(web::get().to(index)))
-            .service(web::resource("/index.html").to(|| async { IndexTemplate {
-                title: "A T2",
-                keywords: "A K2",
-                description: "A D2",
-                test: "A Test2",
-            } }))
             .service(web::resource("/about").route(web::get().to(about)))
             .service(fs::Files::new("/assets", "./files/assets").show_files_listing())
             .service(web::scope("").wrap(error_handlers()))
     })
-    //.bind("0.0.0.0:5000")? //http
-    .bind_openssl("0.0.0.0:5000", builder)? //https
+    .bind("0.0.0.0:5000")? //http
+    //.bind_openssl("0.0.0.0:5000", builder)? //https
     .run()
     .await
 }
@@ -130,5 +125,5 @@ fn get_error_response<B>(res: &ServiceResponse<B>, error: &str) -> Response<Body
 
     Response::build(res.status())
         .content_type("text/html")
-        .body(s.render().unwrap())
+        .body(s.render_once().unwrap())
 }
